@@ -4,11 +4,16 @@ import android.content.Context
 
 object Prefs {
     const val DEFAULT_WARNING = "Are you sure you want to open this app? Is it really the best use of your time right now?"
+    const val MIN_REWARN_MINUTES = 1
+    const val MAX_REWARN_MINUTES = 30
+    const val DEFAULT_REWARN_MINUTES = 10
 
     private const val FILE = "focus_guard"
     private const val KEY_WARNING = "warning"
     private const val KEY_TRIGGERS = "triggers"
     private const val KEY_REDIRECT = "redirect"
+    private const val KEY_ENABLED = "enabled"
+    private const val KEY_REWARN_MINUTES = "rewarn_minutes"
 
     private fun sp(c: Context) = c.getSharedPreferences(FILE, Context.MODE_PRIVATE)
 
@@ -38,5 +43,23 @@ object Prefs {
         val e = sp(c).edit()
         if (pkg == null) e.remove(KEY_REDIRECT) else e.putString(KEY_REDIRECT, pkg)
         e.apply()
+    }
+
+    /** Master switch: when false the service ignores everything. */
+    fun isEnabled(c: Context): Boolean = sp(c).getBoolean(KEY_ENABLED, true)
+
+    fun setEnabled(c: Context, enabled: Boolean) {
+        sp(c).edit().putBoolean(KEY_ENABLED, enabled).apply()
+    }
+
+    /** Minutes you must be away from an allowed trigger app before it warns again. */
+    fun getRewarnMinutes(c: Context): Int =
+        sp(c).getInt(KEY_REWARN_MINUTES, DEFAULT_REWARN_MINUTES)
+            .coerceIn(MIN_REWARN_MINUTES, MAX_REWARN_MINUTES)
+
+    fun setRewarnMinutes(c: Context, minutes: Int) {
+        sp(c).edit()
+            .putInt(KEY_REWARN_MINUTES, minutes.coerceIn(MIN_REWARN_MINUTES, MAX_REWARN_MINUTES))
+            .apply()
     }
 }

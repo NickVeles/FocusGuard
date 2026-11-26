@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Special access the user grants in Settings -> Usage access; used to show today's usage time. -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
 
     <!-- Lets us list/launch every app that has a launcher icon (Android 11+ package visibility). -->
     <queries>
@@ -25,14 +31,13 @@
             </intent-filter>
         </activity>
 
-        <!-- Empty taskAffinity: the popup gets its own task, so it never lands inside
+        <!-- Empty taskAffinity: the warning gets its own task, so it never lands inside
              the settings screen's task and closing it returns to the trigger app. -->
         <activity
             android:name=".WarningActivity"
             android:exported="false"
             android:excludeFromRecents="true"
-            android:taskAffinity=""
-            android:theme="@style/WarningDialog" />
+            android:taskAffinity="" />
 
         <service
             android:name=".WarningService"

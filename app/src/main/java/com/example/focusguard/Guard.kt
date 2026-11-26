@@ -8,12 +8,10 @@ import android.content.pm.PackageManager
  *
  * Android gives a normal app no way to tell a fresh app start from a switch back to an app that is
  * already in Recents. So after the user picks "Open anyway", that app is treated as "in use":
- * it won't be warned about again unless the user has been out of it for REWARN_AFTER_MS.
+ * it won't be warned about again unless the user has been out of it for longer than the
+ * "minutes between warnings" setting.
  */
 object Guard {
-    /** How long you can be away from an allowed trigger app before the next open warns again. */
-    const val REWARN_AFTER_MS = 10 * 60 * 1000L
-
     /** Trigger apps the user chose "Open anyway" for. Value = when they left it (null = still using it). */
     private val allowed = HashMap<String, Long?>()
 
@@ -33,17 +31,20 @@ object Guard {
     }
 
     /** Called for every foreground event of a trigger app. True = show the warning. */
-    fun shouldWarn(pkg: String, now: Long): Boolean {
+    fun shouldWarn(pkg: String, now: Long, graceMs: Long): Boolean {
         if (warningFor == pkg) return false
         if (!allowed.containsKey(pkg)) return true
         val left = allowed[pkg] ?: return false // never left it since "Open anyway"
-        if (now - left > REWARN_AFTER_MS) {
+        if (now - left > graceMs) {
             allowed.remove(pkg)
             return true
         }
         allowed[pkg] = null // back within the grace period: same session
         return false
     }
+
+    /** True if the user has chosen to use this trigger app and no new warning is pending for it. */
+    fun isAllowed(pkg: String): Boolean = allowed.containsKey(pkg) && warningFor != pkg
 
     fun allow(pkg: String) {
         allowed[pkg] = null

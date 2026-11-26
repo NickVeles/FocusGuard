@@ -8,13 +8,16 @@ import android.graphics.Typeface
 import android.os.Bundle
 import android.provider.Settings
 import android.text.Editable
+import android.text.InputFilter
 import android.text.InputType
 import android.text.TextWatcher
+import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.Switch
 import android.widget.TextView
 
 class MainActivity : Activity() {
@@ -24,6 +27,7 @@ class MainActivity : Activity() {
     private lateinit var statusText: TextView
     private lateinit var triggersText: TextView
     private lateinit var redirectText: TextView
+    private lateinit var rewarnInput: EditText
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
@@ -43,7 +47,7 @@ class MainActivity : Activity() {
             setPadding(0, dp(20), 0, dp(6))
         }
 
-        fun add(v: android.view.View) = root.addView(
+        fun add(v: View) = root.addView(
             v,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -59,8 +63,21 @@ class MainActivity : Activity() {
             setPadding(0, 0, 0, dp(8))
         })
 
+        // --- On/off switch ---
+        add(Switch(this).apply {
+            text = "Focus Guard enabled"
+            textSize = 16f
+            isChecked = Prefs.isEnabled(this@MainActivity)
+            setOnCheckedChangeListener { _, checked ->
+                Prefs.setEnabled(this@MainActivity, checked)
+                // Start from a clean slate whenever it's switched either way.
+                Usage.stop(this@MainActivity.applicationContext)
+                Guard.reset()
+            }
+        })
+
         // --- Service status ---
-        statusText = TextView(this)
+        statusText = TextView(this).apply { setPadding(0, dp(12), 0, 0) }
         add(statusText)
         add(Button(this).apply {
             text = "Open accessibility settings"
@@ -103,6 +120,37 @@ class MainActivity : Activity() {
             setOnClickListener { pickRedirect() }
         })
 
+        // --- Minutes between warnings ---
+        add(header("Minutes between warnings (${Prefs.MIN_REWARN_MINUTES}-${Prefs.MAX_REWARN_MINUTES})"))
+        add(TextView(this).apply {
+            text = "After you tap \"Open anyway\", that app won't warn you again until you've " +
+                "been away from it for this many minutes."
+            textSize = 13f
+            setPadding(0, 0, 0, dp(6))
+        })
+        rewarnInput = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER // digits only
+            filters = arrayOf<InputFilter>(InputFilter.LengthFilter(2))
+            setText(Prefs.getRewarnMinutes(this@MainActivity).toString())
+            setOnFocusChangeListener { _, hasFocus -> if (!hasFocus) restoreRewarnIfInvalid() }
+        }
+        rewarnInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                val n = s?.toString()?.toIntOrNull()
+                if (n != null && n in Prefs.MIN_REWARN_MINUTES..Prefs.MAX_REWARN_MINUTES) {
+                    Prefs.setRewarnMinutes(this@MainActivity, n)
+                    rewarnInput.error = null
+                } else {
+                    // Invalid input is never saved; the last valid value stays in effect.
+                    rewarnInput.error =
+                        "Enter ${Prefs.MIN_REWARN_MINUTES}-${Prefs.MAX_REWARN_MINUTES}"
+                }
+            }
+        })
+        add(rewarnInput)
+
         val scroll = ScrollView(this)
         scroll.addView(root)
         // Keep content clear of the status bar / navigation bar / cutout (edge-to-edge on Android 15+).
@@ -123,11 +171,24 @@ class MainActivity : Activity() {
         refresh()
     }
 
+    override fun onPause() {
+        super.onPause()
+        restoreRewarnIfInvalid()
+    }
+
+    /** If the minutes field is empty/out of range, put back the saved (valid) value. */
+    private fun restoreRewarnIfInvalid() {
+        val n = rewarnInput.text.toString().toIntOrNull()
+        if (n == null || n !in Prefs.MIN_REWARN_MINUTES..Prefs.MAX_REWARN_MINUTES) {
+            rewarnInput.setText(Prefs.getRewarnMinutes(this).toString())
+        }
+    }
+
     private fun refresh() {
         statusText.text = if (isServiceEnabled()) {
-            "Service status: ON"
+            "Accessibility service: ON"
         } else {
-            "Service status: OFF — enable \"Focus Guard\" in Accessibility settings " +
+            "Accessibility service: OFF — enable \"Focus Guard\" in Accessibility settings " +
                 "(under Installed/Downloaded apps)."
         }
 
