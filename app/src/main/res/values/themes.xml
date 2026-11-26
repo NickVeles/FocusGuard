@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Main screen: no system action bar (we draw our own title and handle window insets). -->
+    <style name="AppTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <!-- Warning popup: a dialog-styled activity shown on top of the trigger app. -->
+    <style name="WarningDialog" parent="@android:style/Theme.Material.Light.Dialog.NoActionBar" />
+</resources>
